@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Present Simple Game</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background: #f5f7fa; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding: 30px; }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fade 0.4s; }
+        @keyframes fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        h1 { text-align: center; color: #2c3e50; margin: 20px 0; font-size: 2.2rem; }
+        .btn { background: #3498db; color: white; border: none; padding: 15px 30px; font-size: 1.1rem; border-radius: 50px; cursor: pointer; margin: 20px auto; display: block; width: fit-content; transition: all 0.3s; }
+        .btn:hover { background: #2980b9; transform: translateY(-2px); }
+        .question { font-size: 1.4rem; margin: 25px 0; line-height: 1.5; color: #2c3e50; }
+        .option { padding: 12px 15px; margin: 10px 0; background: #f1f8ff; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .option:hover { background: #e1f0ff; border-color: #3498db; }
+        .option.selected { background: #d4e6f1; border-color: #2980b9; }
+        .option.correct { background: #d4edda; border-color: #28a745; }
+        .option.incorrect { background: #f8d7da; border-color: #dc3545; }
+        .score { text-align: right; font-weight: bold; font-size: 1.2rem; color: #2c3e50; margin: 15px 0; }
+        .progress { height: 10px; background: #e9ecef; border-radius: 5px; margin: 20px 0; overflow: hidden; }
+        .progress-bar { height: 100%; background: #3498db; width: 0%; transition: width 0.3s; }
+        label { display: block; margin: 15px 0 8px; font-weight: bold; color: #2c3e50; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        textarea { min-height: 80px; resize: vertical; }
+        .confidence-slider { width: 100%; margin: 10px 0; }
+        .slider-value { text-align: center; font-weight: bold; font-size: 1.8rem; color: #e74c3c; margin: 10px 0; }
+        .timestamp { background: #f8f9fa; padding: 8px; border-radius: 8px; text-align: center; margin: 15px 0; font-family: monospace; color: #7f8c8d; }
+        .message { padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center; display: none; }
+        .success { background: #d4edda; color: #155724; display: block; }
+        .error { background: #f8d7da; color: #721c24; display: block; }
+        .final-score { text-align: center; font-size: 3.5rem; font-weight: bold; color: #3498db; margin: 20px 0; }
+        .instructions { background: #e3f2fd; padding: 15px; border-radius: 10px; margin: 20px 0; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="start-screen" class="screen active">
+            <h1>Present Simple Challenge</h1>
+            <p style="text-align:center; font-size:1.2rem; margin:25px 0;">Проверь свои знания настоящего простого времени!</p>
+            <button id="start-btn" class="btn">Начать игру</button>
+            <div class="instructions">
+                <p><strong>Как играть:</strong></p>
+                <p>1. Ответь на 5 вопросов</p>
+                <p>2. Заполни форму рефлексии</p>
+                <p>3. Твои результаты сохранятся в таблицу учителя</p>
+            </div>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div class="score">Счёт: <span id="score">0</span>/5</div>
+            <div class="progress">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <div class="question" id="question"></div>
+            <div id="options"></div>
+            <button id="next-btn" class="btn" style="display:none;">Следующий вопрос</button>
+        </div>
+
+        <div id="reflection-screen" class="screen">
+            <h1>Рефлексия урока</h1>
+            <div class="final-score" id="final-score">0/5</div>
+            
+            <form id="reflection-form">
+                <label for="name">Ваше имя:</label>
+                <input type="text" id="name" required>
+                
+                <label for="confidence">Насколько вы уверены в теме Present Simple?</label>
+                <input type="range" id="confidence" class="confidence-slider" min="1" max="5" value="3">
+                <div class="slider-value" id="confidence-value">3</div>
+                
+                <label for="feedback">Обратная связь (что было сложно/понятно):</label>
+                <textarea id="feedback" placeholder="Ваши мысли..."></textarea>
+                
+                <div class="timestamp" id="timestamp"></div>
+                
+                <button type="submit" class="btn">Отправить результаты</button>
+            </form>
+            
+            <div id="message" class="message"></div>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            { q: "She _____ to school every day.", o: ["go", "goes", "going", "gone"], a: "goes" },
+            { q: "They _____ football on Saturdays.", o: ["plays", "play", "playing", "played"], a: "play" },
+            { q: "My brother _____ in London.", o: ["live", "lives", "living", "lived"], a: "lives" },
+            { q: "I _____ coffee in the morning.", o: ["not drink", "doesn't drink", "don't drink", "not drinking"], a: "don't drink" },
+            { q: "_____ you like chocolate?", o: ["Do", "Does", "Are", "Is"], a: "Do" }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let selectedAnswer = null;
+        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxNyFpcJRqOzHZjlW1D1jTVsgyYfvjaoLK_k7-0nxkIYv2f7KZcD7GSESAQ6UpZUwm5/exec"; // ← ЗАМЕНИТЕ ЭТУ СТРОКУ НА ССЫЛКУ ВАШЕГО GOOGLE SHEETS WEB APP
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            loadQuestion();
+        });
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                loadQuestion();
+            } else {
+                showReflection();
+            }
+        });
+
+        document.getElementById('confidence').addEventListener('input', (e) => {
+            document.getElementById('confidence-value').textContent = e.target.value;
+        });
+
+        document.getElementById('reflection-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const confidence = document.getElementById('confidence').value;
+            const feedback = document.getElementById('feedback').value.trim() || "Нет комментариев";
+            const timestamp = new Date().toLocaleString('ru-RU');
+            
+            const data = {
+                name: name,
+                score: `${score}/${questions.length}`,
+                confidence: confidence,
+                feedback: feedback,
+                timestamp: timestamp
+            };
+            
+            fetch(GOOGLE_SHEET_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    showMessage('Результаты успешно отправлены!', 'success');
+                    setTimeout(resetGame, 2500);
+                } else {
+                    throw new Error('Ошибка сервера');
+                }
+            })
+            .catch(() => {
+                showMessage('Ошибка отправки. Проверьте ссылку в коде.', 'error');
+            });
+        });
+
+        function loadQuestion() {
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('options').innerHTML = '';
+            selectedAnswer = null;
+            
+            const q = questions[currentQuestion];
+            document.getElementById('question').textContent = q.q;
+            document.getElementById('progress-bar').style.width = `${(currentQuestion / questions.length) * 100}%`;
+            
+            q.o.forEach(option => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.textContent = option;
+                div.onclick = () => selectOption(div, option, q.a);
+                document.getElementById('options').appendChild(div);
+            });
+        }
+
+        function selectOption(element, answer, correctAnswer) {
+            if (document.getElementById('next-btn').style.display === 'block') return;
+            
+            document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected', 'correct', 'incorrect'));
+            element.classList.add('selected');
+            selectedAnswer = answer;
+            
+            if (answer === correctAnswer) {
+                element.classList.add('correct');
+                score++;
+                document.getElementById('score').textContent = score;
+            } else {
+                element.classList.add('incorrect');
+                document.querySelector(`.option:contains('${correctAnswer}')`).classList.add('correct');
+            }
+            
+            document.getElementById('next-btn').style.display = 'block';
+        }
+
+        function showReflection() {
+            document.getElementById('game-screen').classList.remove('active');
+            document.getElementById('reflection-screen').classList.add('active');
+            document.getElementById('final-score').textContent = `${score}/${questions.length}`;
+            document.getElementById('timestamp').textContent = new Date().toLocaleString('ru-RU');
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+        }
+
+        function resetGame() {
+            currentQuestion = 0;
+            score = 0;
+            document.getElementById('score').textContent = '0';
+            document.getElementById('reflection-form').reset();
+            document.getElementById('confidence-value').textContent = '3';
+            document.getElementById('message').className = 'message';
+            document.getElementById('reflection-screen').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('.option:contains').parentNode.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
